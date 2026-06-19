@@ -6,8 +6,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.balistic</groupId>
-    <artifactId>balistic-calculator</artifactId>
-    <version>1.0.0</version>
+    <artifactId>balistic-calculator-1.1</artifactId>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <name>Ballistic Calculator</name>
