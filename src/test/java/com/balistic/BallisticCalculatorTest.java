@@ -143,6 +143,6 @@ class BallisticCalculatorTest {
     @DisplayName("Calculate Y position at some time")
     void testCalculateYAtTime() {
         double result = BallisticCalculator.calculateY(50.0, 45.0, 2.0);
-        assertEquals(51.08, result, DELTA);
+        assertEquals(51.09, result, DELTA);
     }
 }
