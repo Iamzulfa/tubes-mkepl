@@ -1,0 +1,197 @@
+# ============================================================
+# Ballistic Calculator - CI/CD Pipeline
+# GitHub Actions Workflow
+# ============================================================
+# This workflow implements 4 CI/CD components:
+#   1. Continuous Integration  - Build & compile
+#   2. Continuous Testing       - Unit tests + code coverage
+#   3. Continuous Inspection    - Code quality (Checkstyle + PMD)
+#   4. Continuous Deployment    - Package JAR + GitHub Release
+# ============================================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  # ==========================================================
+  # 1. CONTINUOUS INTEGRATION - Build & Compile
+  # ==========================================================
+  build:
+    name: "1 - Continuous Integration (Build)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Compile project
+        run: mvn compile -B
+
+      - name: Upload compiled classes
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-classes
+          path: target/classes/
+          retention-days: 5
+
+  # ==========================================================
+  # 2. CONTINUOUS TESTING - Unit Tests + Code Coverage
+  # ==========================================================
+  test:
+    name: "2 - Continuous Testing"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Run unit tests with coverage
+        run: mvn test jacoco:report -B
+
+      - name: Check code coverage threshold
+        run: mvn jacoco:check -B
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+          retention-days: 5
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          retention-days: 5
+
+  # ==========================================================
+  # 3. CONTINUOUS INSPECTION - Code Quality Analysis
+  # ==========================================================
+  inspection:
+    name: "3 - Continuous Inspection"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Run Checkstyle analysis
+        run: mvn checkstyle:check -B
+
+      - name: Run PMD analysis
+        run: mvn pmd:check -B
+
+      - name: Upload Checkstyle report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkstyle-report
+          path: target/checkstyle-result.xml
+          retention-days: 5
+
+      - name: Upload PMD report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pmd-report
+          path: target/pmd.xml
+          retention-days: 5
+
+  # ==========================================================
+  # 4. CONTINUOUS DEPLOYMENT - Package & Release
+  # ==========================================================
+  deploy:
+    name: "4 - Continuous Deployment"
+    needs: [test, inspection]
+    runs-on: ubuntu-latest
+    # Only deploy on push to main branch (not on PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+
+      - name: Package application (fat JAR)
+        run: mvn package -DskipTests -B
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: balistic-calculator-jar
+          path: target/balistic-calculator-1.0.0-jar-with-dependencies.jar
+          retention-days: 30
+
+      - name: Get current version from pom.xml
+        id: get-version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get-version.outputs.version }}-build${{ github.run_number }}
+          name: "Release v${{ steps.get-version.outputs.version }} (Build ${{ github.run_number }})"
+          body: |
+            ## Ballistic Calculator - Release v${{ steps.get-version.outputs.version }}
+            
+            **Build:** ${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+            
+            ### What's included
+            - Executable JAR with all dependencies bundled
+            - Passed all unit tests with code coverage > 70%
+            - Passed Checkstyle and PMD code quality checks
+            
+            ### How to run
+            ```bash
+            java -jar balistic-calculator-${{ steps.get-version.outputs.version }}-jar-with-dependencies.jar
+            ```
+          files: |
+            target/balistic-calculator-${{ steps.get-version.outputs.version }}-jar-with-dependencies.jar
+            target/balistic-calculator-${{ steps.get-version.outputs.version }}.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
