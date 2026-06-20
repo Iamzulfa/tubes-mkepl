@@ -7,7 +7,7 @@ package com.balistic;
 public final class App {
 
     /** Gravity constant in m/s^2. */
-    public static final double GRAVITY = 9.81
+    public static final double GRAVITY = 9.81;
 
     private App() {
         // Utility class, no instantiation
