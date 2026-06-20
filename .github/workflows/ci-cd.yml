@@ -130,11 +130,48 @@ jobs:
           retention-days: 5
 
   # ==========================================================
-  # 4. CONTINUOUS DEPLOYMENT - Package & Release
+  # 4. SONARCLOUD - Advanced Static Analysis
+  # ==========================================================
+  sonarcloud:
+    name: "4 - SonarCloud Analysis"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones disabled for better relevancy of analysis
+      
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: maven
+          
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+          
+      - name: Build and analyze with SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar 
+          -Dsonar.projectKey=Iamzulfa_tubes-mkepl
+          -Dsonar.organization=iamzulfa 
+          -Dsonar.host.url=https://sonarcloud.io
+
+  # ==========================================================
+  # 5. CONTINUOUS DEPLOYMENT - Package & Release
   # ==========================================================
   deploy:
-    name: "4 - Continuous Deployment"
-    needs: [test, inspection]
+    name: "5 - Continuous Deployment"
+    needs: [test, inspection, sonarcloud]
     runs-on: ubuntu-latest
     # Only deploy on push to main branch (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
