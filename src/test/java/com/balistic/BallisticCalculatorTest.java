@@ -27,7 +27,7 @@ class BallisticCalculatorTest {
     @DisplayName("Range at 45 degrees with 50 m/s")
     void testRange45Degrees() {
         double result = BallisticCalculator.calculateRange(50.0, 45.0);
-        assertEquals(254.84, result, DELTA);
+        assertEquals(254.84, result);
     }
 
     @Test
