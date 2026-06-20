@@ -20,7 +20,7 @@ class BallisticCalculatorTest {
     @DisplayName("Max height at 45 degrees with 50 m/s")
     void testMaxHeight45Degrees() {
         double result = BallisticCalculator.calculateMaxHeight(50.0, 45.0);
-        assertEquals(63.71, result, DELTA);
+        assertEquals(63.71, result);
     }
 
     @Test
