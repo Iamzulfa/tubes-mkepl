@@ -99,6 +99,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for SonarCloud relevancy
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -129,27 +131,6 @@ jobs:
           path: target/pmd.xml
           retention-days: 5
 
-  # ==========================================================
-  # 4. SONARCLOUD - Advanced Static Analysis
-  # ==========================================================
-  sonarcloud:
-    name: "4 - SonarCloud Analysis"
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Shallow clones disabled for better relevancy of analysis
-      
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          cache: maven
-          
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         with:
@@ -158,6 +139,7 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
           
       - name: Build and analyze with SonarCloud
+        if: github.event_name == 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -168,11 +150,11 @@ jobs:
           -Dsonar.host.url=https://sonarcloud.io
 
   # ==========================================================
-  # 5. CONTINUOUS DEPLOYMENT - Package & Release
+  # 4. CONTINUOUS DEPLOYMENT - Package & Release
   # ==========================================================
   deploy:
-    name: "5 - Continuous Deployment"
-    needs: [test, inspection, sonarcloud]
+    name: "4 - Continuous Deployment"
+    needs: [test, inspection]
     runs-on: ubuntu-latest
     # Only deploy on push to main branch (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
